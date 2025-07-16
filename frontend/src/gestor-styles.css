@@ -1,0 +1,320 @@
+/* Estilos globales mejorados para Gestor POS */
+
+/* Variables CSS para consistencia */
+:root {
+  --primary-color: #1890ff;
+  --success-color: #52c41a;
+  --warning-color: #fa8c16;
+  --error-color: #ff4d4f;
+  --text-color: #262626;
+  --text-secondary: #8c8c8c;
+  --background-color: #f0f2f5;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  --border-radius: 8px;
+}
+
+/* Reset y base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mejoras para el layout principal */
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para cards mejorados */
+.ant-card {
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Botones mejorados */
+.ant-btn {
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+}
+
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Títulos mejorados */
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+.ant-typography h4 {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.ant-typography h1 {
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animaciones suaves */
+.fade-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.fade-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+/* Grid responsive mejorado */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+/* Iconos mejorados */
+.anticon {
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover .anticon {
+  transform: scale(1.1);
+}
+
+/* Gradientes para backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.gradient-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-info {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Footer mejorado */
+.ant-layout-footer {
+  text-align: center;
+  background: #001529;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 24px 50px;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Loading states */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.loading-spinner {
+  font-size: 24px;
+  color: var(--primary-color);
+}
+
+/* Error boundary styles */
+.error-boundary {
+  padding: 50px;
+  text-align: center;
+  background: #fff;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  margin: 20px;
+}
+
+.error-boundary h2 {
+  color: var(--error-color);
+  margin-bottom: 16px;
+}
+
+.error-boundary p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px;
+  }
+  
+  .ant-layout-content {
+    padding: 24px 16px;
+  }
+  
+  .dashboard-grid,
+  .feature-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .ant-typography h1 {
+    font-size: 24px;
+  }
+  
+  .ant-typography h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ant-layout-header {
+    padding: 0 12px;
+  }
+  
+  .ant-layout-content {
+    padding: 16px 12px;
+  }
+  
+  .ant-card {
+    margin-bottom: 16px;
+  }
+}
+
+/* Mejoras para accesibilidad */
+.ant-btn:focus,
+.ant-card:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Estados de hover mejorados */
+.module-card {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.module-card:active {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Animación de entrada para páginas */
+.page-enter {
+  animation: pageEnter 0.3s ease-out;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos para el header navigation */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-nav .ant-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.header-nav .ant-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.header-nav .ant-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.header-nav .ant-btn-primary:hover {
+  background: #40a9ff;
+}
