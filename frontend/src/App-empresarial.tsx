@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Card, Statistic, Row, Col, Form, Input, Select, Table, Modal, message, Space, Tag, DatePicker, InputNumber, Upload, Typography, TimePicker, Checkbox } from 'antd';
+import { Layout, Menu, Button, Card, Statistic, Row, Col, Form, Input, Select, Table, Modal, message, Space, Tag, DatePicker, InputNumber, Upload, Typography, TimePicker, Checkbox, Dropdown } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
@@ -40,7 +40,11 @@ import {
   FileExcelOutlined,
   LeftOutlined,
   RightOutlined,
-  SearchOutlined
+  SearchOutlined,
+  MoreOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -1576,6 +1580,21 @@ const App: React.FC = () => {
   const handleDeleteFactura = (id: number) => {
     setFacturas(facturas.filter(f => f.id !== id));
     message.success('Factura eliminada correctamente');
+  };
+
+  const handleChangeFacturaEstado = (id: number, nuevoEstado: 'pendiente' | 'pagado' | 'vencido' | 'cancelado') => {
+    setFacturas(facturas.map(f => 
+      f.id === id ? { ...f, estado: nuevoEstado } : f
+    ));
+    
+    const mensajes = {
+      'pendiente': 'Factura marcada como pendiente',
+      'pagado': 'Factura marcada como pagada',
+      'vencido': 'Factura marcada como vencida',
+      'cancelado': 'Factura cancelada'
+    };
+    
+    message.success(mensajes[nuevoEstado]);
   };
 
   const handleViewFactura = (factura: Factura) => {
@@ -4392,39 +4411,84 @@ const App: React.FC = () => {
           {
             title: 'Acciones',
             key: 'acciones',
-            width: 200,
-            render: (_: any, record: Factura) => (
-              <Space>
-                <Button 
-                  icon={<EyeOutlined />} 
-                  onClick={() => handleViewFactura(record)}
-                  title="Ver Factura"
-                  size="small"
-                />
-                <Button 
-                  icon={<PrinterOutlined />} 
-                  onClick={() => generarPDFFactura(record)}
-                  title="Imprimir"
-                  size="small"
-                  className="text-blue-600"
-                />
-                <Button 
-                  icon={<EditOutlined />} 
-                  onClick={() => handleEditFactura(record)}
-                  title="Editar"
-                  size="small"
-                  disabled={record.estado === 'pagado'}
-                />
-                <Button 
-                  icon={<DeleteOutlined />} 
-                  onClick={() => handleDeleteFactura(record.id)}
-                  title="Eliminar"
-                  size="small"
-                  danger
-                  disabled={record.estado === 'pagado'}
-                />
-              </Space>
-            )
+            width: 250,
+            render: (_: any, record: Factura) => {
+              const estadoMenuItems = [
+                {
+                  key: 'pendiente',
+                  icon: <ClockCircleOutlined />,
+                  label: 'Marcar como Pendiente',
+                  disabled: record.estado === 'pendiente',
+                  onClick: () => handleChangeFacturaEstado(record.id, 'pendiente')
+                },
+                {
+                  key: 'pagado',
+                  icon: <CheckOutlined />,
+                  label: 'Marcar como Pagado',
+                  disabled: record.estado === 'pagado',
+                  onClick: () => handleChangeFacturaEstado(record.id, 'pagado')
+                },
+                {
+                  key: 'vencido',
+                  icon: <ExclamationCircleOutlined />,
+                  label: 'Marcar como Vencido',
+                  disabled: record.estado === 'vencido',
+                  onClick: () => handleChangeFacturaEstado(record.id, 'vencido')
+                },
+                {
+                  key: 'cancelado',
+                  icon: <CloseOutlined />,
+                  label: 'Cancelar Factura',
+                  disabled: record.estado === 'cancelado',
+                  onClick: () => handleChangeFacturaEstado(record.id, 'cancelado')
+                }
+              ];
+
+              return (
+                <Space>
+                  <Button 
+                    icon={<EyeOutlined />} 
+                    onClick={() => handleViewFactura(record)}
+                    title="Ver Factura"
+                    size="small"
+                  />
+                  <Button 
+                    icon={<PrinterOutlined />} 
+                    onClick={() => generarPDFFactura(record)}
+                    title="Imprimir"
+                    size="small"
+                    className="text-blue-600"
+                  />
+                  <Dropdown 
+                    menu={{ items: estadoMenuItems }}
+                    trigger={['click']}
+                    disabled={record.estado === 'cancelado'}
+                  >
+                    <Button 
+                      icon={<MoreOutlined />} 
+                      title="Cambiar Estado"
+                      size="small"
+                      className="text-green-600"
+                    />
+                  </Dropdown>
+                  <Button 
+                    icon={<EditOutlined />} 
+                    onClick={() => handleEditFactura(record)}
+                    title="Editar"
+                    size="small"
+                    disabled={record.estado === 'pagado' || record.estado === 'cancelado'}
+                  />
+                  <Button 
+                    icon={<DeleteOutlined />} 
+                    onClick={() => handleDeleteFactura(record.id)}
+                    title="Eliminar"
+                    size="small"
+                    danger
+                    disabled={record.estado === 'pagado'}
+                  />
+                </Space>
+              )
+            }
           }
         ];
 
