@@ -56,6 +56,7 @@ interface Product {
   stock: number;
   descripcion: string;
   codigo: string;
+  imagen?: string; // URL de la imagen del producto
 }
 
 interface Cliente {
@@ -268,21 +269,53 @@ const App: React.FC = () => {
       const defaultProducts: Product[] = [
         {
           id: 1,
-          codigo: 'PROD001',
-          nombre: 'Producto Ejemplo 1',
+          codigo: 'LAPTOP001',
+          nombre: 'Laptop Dell Inspiron',
           categoria: 'Electrónicos',
-          precio: 100.00,
-          stock: 50,
-          descripcion: 'Producto de ejemplo'
+          precio: 899.99,
+          stock: 15,
+          descripcion: 'Laptop Dell Inspiron 15 3000, Intel Core i5, 8GB RAM, 256GB SSD',
+          imagen: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop&crop=center'
         },
         {
           id: 2,
-          codigo: 'PROD002',
-          nombre: 'Producto Ejemplo 2',
+          codigo: 'PHONE001',
+          nombre: 'Smartphone Samsung',
+          categoria: 'Electrónicos',
+          precio: 699.99,
+          stock: 25,
+          descripcion: 'Samsung Galaxy A54 5G, 128GB, Cámara 50MP',
+          imagen: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 3,
+          codigo: 'SHIRT001',
+          nombre: 'Camisa Formal',
           categoria: 'Ropa',
-          precio: 50.00,
-          stock: 30,
-          descripcion: 'Otro producto de ejemplo'
+          precio: 45.99,
+          stock: 40,
+          descripcion: 'Camisa formal de algodón, disponible en varios colores',
+          imagen: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 4,
+          codigo: 'BOOK001',
+          nombre: 'Libro de Programación',
+          categoria: 'Libros',
+          precio: 29.99,
+          stock: 20,
+          descripcion: 'Guía completa de JavaScript moderno y desarrollo web',
+          imagen: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 5,
+          codigo: 'CHAIR001',
+          nombre: 'Silla Ergonómica',
+          categoria: 'Hogar',
+          precio: 159.99,
+          stock: 12,
+          descripcion: 'Silla de oficina ergonómica con soporte lumbar ajustable',
+          imagen: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop&crop=center'
         }
       ];
       setProductos(defaultProducts);
@@ -1289,18 +1322,53 @@ const App: React.FC = () => {
 
   // Columnas para tablas
   const productColumns = [
-    { title: 'Código', dataIndex: 'codigo', key: 'codigo' },
+    { 
+      title: 'Imagen', 
+      dataIndex: 'imagen', 
+      key: 'imagen',
+      width: 80,
+      render: (imagen: string, record: Product) => (
+        <div className="flex justify-center">
+          {imagen ? (
+            <img 
+              src={imagen} 
+              alt={record.nombre}
+              className="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => {
+                // Crear modal para ver imagen en tamaño completo
+                Modal.info({
+                  title: record.nombre,
+                  content: (
+                    <div className="flex justify-center">
+                      <img src={imagen} alt={record.nombre} className="max-w-full max-h-96 object-contain" />
+                    </div>
+                  ),
+                  width: 600,
+                  okText: 'Cerrar'
+                });
+              }}
+            />
+          ) : (
+            <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+              <ProductOutlined className="text-gray-400 text-lg" />
+            </div>
+          )}
+        </div>
+      )
+    },
+    { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 100 },
     { title: 'Nombre', dataIndex: 'nombre', key: 'nombre' },
-    { title: 'Categoría', dataIndex: 'categoria', key: 'categoria' },
-    { title: 'Precio', dataIndex: 'precio', key: 'precio', render: (precio: number) => `$${precio.toFixed(2)}` },
-    { title: 'Stock', dataIndex: 'stock', key: 'stock' },
+    { title: 'Categoría', dataIndex: 'categoria', key: 'categoria', width: 120 },
+    { title: 'Precio', dataIndex: 'precio', key: 'precio', width: 100, render: (precio: number) => `$${precio.toFixed(2)}` },
+    { title: 'Stock', dataIndex: 'stock', key: 'stock', width: 80 },
     {
       title: 'Acciones',
       key: 'acciones',
+      width: 120,
       render: (_: any, record: Product) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleEditProduct(record)} />
-          <Button icon={<DeleteOutlined />} danger onClick={() => handleDeleteProduct(record.id)} />
+          <Button icon={<EditOutlined />} onClick={() => handleEditProduct(record)} size="small" />
+          <Button icon={<DeleteOutlined />} danger onClick={() => handleDeleteProduct(record.id)} size="small" />
         </Space>
       )
     }
@@ -2477,6 +2545,33 @@ const App: React.FC = () => {
                 <Form.Item name="descripcion" label="Descripción">
                   <Input.TextArea rows={3} placeholder="Descripción del producto" />
                 </Form.Item>
+                <Form.Item name="imagen" label="Imagen del Producto">
+                  <div className="space-y-2">
+                    <Input 
+                      placeholder="URL de la imagen (opcional)" 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        productForm.setFieldValue('imagen', value);
+                      }}
+                    />
+                    <div className="text-xs text-gray-500">
+                      Puedes usar una URL de imagen o subir a un servicio como Imgur, CloudFlare, etc.
+                    </div>
+                    {productForm.getFieldValue('imagen') && (
+                      <div className="mt-2">
+                        <div className="text-sm text-gray-600 mb-1">Vista previa:</div>
+                        <img 
+                          src={productForm.getFieldValue('imagen')} 
+                          alt="Vista previa"
+                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Form.Item>
                 <Form.Item className="mb-0 pt-4">
                   <Space className="w-full justify-end">
                     <Button onClick={() => {
@@ -2511,9 +2606,24 @@ const App: React.FC = () => {
                           hoverable
                           onClick={() => agregarAlCarrito(producto)}
                           className="cursor-pointer hover:shadow-md transition-shadow"
+                          cover={
+                            producto.imagen ? (
+                              <div className="h-24 overflow-hidden">
+                                <img 
+                                  src={producto.imagen} 
+                                  alt={producto.nombre}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-24 bg-gray-100 flex items-center justify-center">
+                                <ProductOutlined className="text-gray-400 text-2xl" />
+                              </div>
+                            )
+                          }
                         >
                           <div className="text-center">
-                            <div className="font-medium text-sm">{producto.nombre}</div>
+                            <div className="font-medium text-sm mb-1">{producto.nombre}</div>
                             <div className="text-lg font-bold text-green-600">${producto.precio}</div>
                             <div className="text-xs text-gray-500">Stock: {producto.stock}</div>
                           </div>
@@ -2591,10 +2701,31 @@ const App: React.FC = () => {
         // Crear columnas para la tabla de inventario
         const inventoryProductColumns = [
           { 
+            title: 'Imagen', 
+            dataIndex: 'imagen', 
+            key: 'imagen',
+            width: 70,
+            render: (imagen: string, record: Product) => (
+              <div className="flex justify-center">
+                {imagen ? (
+                  <img 
+                    src={imagen} 
+                    alt={record.nombre}
+                    className="w-10 h-10 object-cover rounded-md border border-gray-200 shadow-sm"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center">
+                    <ProductOutlined className="text-gray-400 text-sm" />
+                  </div>
+                )}
+              </div>
+            )
+          },
+          { 
             title: 'Código', 
             dataIndex: 'codigo', 
             key: 'codigo',
-            width: 100,
+            width: 80,
             sorter: (a: Product, b: Product) => a.codigo.localeCompare(b.codigo)
           },
           { 
