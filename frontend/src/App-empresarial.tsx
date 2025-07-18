@@ -38,13 +38,17 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   FileExcelOutlined,
+  DollarCircleOutlined,
   LeftOutlined,
   RightOutlined,
   SearchOutlined,
   MoreOutlined,
   CheckOutlined,
   CloseOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  WalletOutlined,
+  DollarOutlined,
+  CalculatorOutlined
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -100,6 +104,7 @@ interface Venta {
   }>;
   total: number;
   estado: string;
+  metodoPago?: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro';
 }
 
 interface InventoryMovement {
@@ -154,6 +159,33 @@ interface EventoCalendario {
   participantes?: string;
   recordatorio?: boolean;
   recurrente?: boolean;
+}
+
+interface MovimientoCaja {
+  id: number;
+  fecha: string;
+  tipo: 'ingreso' | 'egreso';
+  concepto: string;
+  monto: number;
+  medioPago: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro';
+  descripcion?: string;
+  categoria: 'venta' | 'otro_ingreso' | 'gasto' | 'retiro';
+}
+
+interface ArqueoCaja {
+  id: number;
+  fecha: string;
+  saldoInicial: number;
+  ventasEfectivo: number;
+  otrosIngresos: number;
+  ventasOtrosMedios: number;
+  salidasEfectivo: number;
+  saldoFinalEsperado: number;
+  saldoFinalReal: number;
+  diferencia: number;
+  observaciones?: string;
+  estado: 'abierto' | 'cerrado';
+  usuario: string;
 }
 
 const App: React.FC = () => {
@@ -248,6 +280,19 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [quickEventType, setQuickEventType] = useState<string | null>(null);
+
+  // Estados para caja y arqueo
+  const [movimientosCaja, setMovimientosCaja] = useState<MovimientoCaja[]>([]);
+  const [arqueosCaja, setArqueosCaja] = useState<ArqueoCaja[]>([]);
+  const [cajaForm] = Form.useForm();
+  const [arqueoForm] = Form.useForm();
+  const [saldoInicialForm] = Form.useForm();
+  const [isMovimientoModalVisible, setIsMovimientoModalVisible] = useState(false);
+  const [isArqueoModalVisible, setIsArqueoModalVisible] = useState(false);
+  const [isSaldoInicialModalVisible, setIsSaldoInicialModalVisible] = useState(false);
+  const [editingMovimiento, setEditingMovimiento] = useState<MovimientoCaja | null>(null);
+  const [arqueoActual, setArqueoActual] = useState<ArqueoCaja | null>(null);
+  const [saldosIniciales, setSaldosIniciales] = useState<{[fecha: string]: number}>({});
 
   // Estados para controlar si ya se cargaron los datos iniciales
   const [datosInicializados, setDatosInicializados] = useState(false);
@@ -371,7 +416,9 @@ const App: React.FC = () => {
       setProveedores(defaultSuppliers);
     }
 
-    if (savedSales) setVentas(JSON.parse(savedSales));
+    if (savedSales) {
+      setVentas(JSON.parse(savedSales));
+    }
     if (savedInventory) setMovimientosInventario(JSON.parse(savedInventory));
     if (savedFacturas) {
       setFacturas(JSON.parse(savedFacturas));
@@ -539,6 +586,24 @@ const App: React.FC = () => {
       setIsLoggedIn(true);
     }
     
+    // Cargar datos de caja
+    const savedMovimientosCaja = localStorage.getItem('movimientosCaja');
+    const savedArqueosCaja = localStorage.getItem('arqueosCaja');
+    
+    if (savedMovimientosCaja) {
+      setMovimientosCaja(JSON.parse(savedMovimientosCaja));
+    }
+    
+    if (savedArqueosCaja) {
+      setArqueosCaja(JSON.parse(savedArqueosCaja));
+    }
+
+    // Cargar saldos iniciales
+    const savedSaldosIniciales = localStorage.getItem('saldosIniciales');
+    if (savedSaldosIniciales) {
+      setSaldosIniciales(JSON.parse(savedSaldosIniciales));
+    }
+    
     // Marcar que los datos han sido inicializados
     console.log('Datos inicializados correctamente');
     setDatosInicializados(true);
@@ -595,6 +660,24 @@ const App: React.FC = () => {
       localStorage.setItem('eventos', JSON.stringify(eventos));
     }
   }, [eventos, datosInicializados]);
+
+  useEffect(() => {
+    if (datosInicializados) {
+      localStorage.setItem('movimientosCaja', JSON.stringify(movimientosCaja));
+    }
+  }, [movimientosCaja, datosInicializados]);
+
+  useEffect(() => {
+    if (datosInicializados) {
+      localStorage.setItem('arqueosCaja', JSON.stringify(arqueosCaja));
+    }
+  }, [arqueosCaja, datosInicializados]);
+
+  useEffect(() => {
+    if (datosInicializados) {
+      localStorage.setItem('saldosIniciales', JSON.stringify(saldosIniciales));
+    }
+  }, [saldosIniciales, datosInicializados]);
 
   useEffect(() => {
     if (datosInicializados) {
@@ -1121,7 +1204,7 @@ const App: React.FC = () => {
     setUsers([]);
     setCurrentUser(null);
     setIsLoggedIn(false);
-    message.success('Todos los datos han sido eliminados. Recarga la página para restaurar datos de ejemplo.');
+    message.success('Todos los datos han sido eliminados exitosamente.');
   };
 
   // Funciones para calcular datos de reportes
@@ -1152,8 +1235,14 @@ const App: React.FC = () => {
       });
       const totalCompras = comprasDelMes.reduce((sum, pedido) => sum + pedido.total, 0);
       
-      // Gastos operativos (simulados basados en ventas)
-      const gastosOperativos = totalVentas * 0.3; // 30% de las ventas como gastos operativos
+      // Gastos operativos reales registrados por el usuario (egresos de caja)
+      const egresosDelMes = movimientosCaja.filter(movimiento => {
+        const fechaMovimiento = new Date(movimiento.fecha);
+        return movimiento.tipo === 'egreso' && 
+               fechaMovimiento.getMonth() === fecha.getMonth() && 
+               fechaMovimiento.getFullYear() === fecha.getFullYear();
+      });
+      const gastosOperativos = egresosDelMes.reduce((sum, egreso) => sum + egreso.monto, 0);
       
       ventasPorMes.push({
         mes: mesAnio,
@@ -1221,6 +1310,49 @@ const App: React.FC = () => {
       .map(([categoria, total]) => ({ categoria, total, porcentaje: 0 }))
       .sort((a, b) => b.total - a.total);
   };
+
+  // Calcular flujo de caja diario real del usuario
+  const calcularFlujoCajaReal = () => {
+    const flujosPorDia: { [fecha: string]: { ingresos: number; egresos: number; saldoInicial: number } } = {};
+    
+    // Agrupar movimientos por fecha
+    movimientosCaja.forEach(movimiento => {
+      const fecha = movimiento.fecha;
+      if (!flujosPorDia[fecha]) {
+        flujosPorDia[fecha] = { ingresos: 0, egresos: 0, saldoInicial: saldosIniciales[fecha] || 0 };
+      }
+      
+      if (movimiento.tipo === 'ingreso') {
+        flujosPorDia[fecha].ingresos += movimiento.monto;
+      } else {
+        flujosPorDia[fecha].egresos += movimiento.monto;
+      }
+    });
+    
+    // Agregar ventas del POS como ingresos
+    ventas.forEach(venta => {
+      const fecha = venta.fecha;
+      if (!flujosPorDia[fecha]) {
+        flujosPorDia[fecha] = { ingresos: 0, egresos: 0, saldoInicial: saldosIniciales[fecha] || 0 };
+      }
+      
+      // Solo contar ventas en efectivo
+      if (venta.metodoPago === 'efectivo') {
+        flujosPorDia[fecha].ingresos += venta.total;
+      }
+    });
+    
+    return Object.entries(flujosPorDia)
+      .map(([fecha, datos]) => ({
+        fecha,
+        ...datos,
+        saldoFinal: datos.saldoInicial + datos.ingresos - datos.egresos,
+        diferencia: datos.ingresos - datos.egresos
+      }))
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .slice(0, 10); // Últimos 10 días
+  };
+
   const verificarLocalStorage = () => {
     console.log('=== VERIFICACIÓN DE LOCALSTORAGE ===');
     console.log('Productos en localStorage:', localStorage.getItem('productos'));
@@ -1272,7 +1404,8 @@ const App: React.FC = () => {
         precio: item.producto.precio
       })),
       total: calcularTotal(),
-      estado: 'completada'
+      estado: 'completada',
+      metodoPago: 'efectivo' // Por defecto, las ventas del POS son en efectivo
     };
 
     setVentas([...ventas, nuevaVenta]);
@@ -1305,7 +1438,7 @@ const App: React.FC = () => {
     setMovimientosInventario([...movimientosInventario, movement]);
 
     // Actualizar stock del producto
-    if (values.tipo === 'entrada') {
+    if (values.tipo === 'ingreso') {
       setProductos(productos.map(p => 
         p.nombre === values.producto 
           ? { ...p, stock: p.stock + values.cantidad }
@@ -1480,10 +1613,175 @@ const App: React.FC = () => {
 
   const inventoryColumns = [
     { title: 'Producto', dataIndex: 'producto', key: 'producto' },
-    { title: 'Tipo', dataIndex: 'tipo', key: 'tipo', render: (tipo: string) => <Tag color={tipo === 'entrada' ? 'green' : 'red'}>{tipo}</Tag> },
+    { title: 'Tipo', dataIndex: 'tipo', key: 'tipo', render: (tipo: string) => <Tag color={tipo === 'ingreso' ? 'green' : 'red'}>{tipo}</Tag> },
     { title: 'Cantidad', dataIndex: 'cantidad', key: 'cantidad' },
     { title: 'Fecha', dataIndex: 'fecha', key: 'fecha' },
     { title: 'Motivo', dataIndex: 'motivo', key: 'motivo' }
+  ];
+
+  // Columnas para tabla de movimientos de caja
+  const movimientosColumns = [
+    {
+      title: 'Fecha',
+      dataIndex: 'fecha',
+      key: 'fecha',
+      sorter: (a: MovimientoCaja, b: MovimientoCaja) => a.fecha.localeCompare(b.fecha)
+    },
+    {
+      title: 'Tipo',
+      dataIndex: 'tipo',
+      key: 'tipo',
+      render: (tipo: string) => (
+        <Tag color={tipo === 'ingreso' ? 'green' : 'red'}>
+          {tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Ingreso', value: 'ingreso' },
+        { text: 'Egreso', value: 'egreso' }
+      ],
+      onFilter: (value: any, record: MovimientoCaja) => record.tipo === value
+    },
+    {
+      title: 'Concepto',
+      dataIndex: 'concepto',
+      key: 'concepto'
+    },
+    {
+      title: 'Monto',
+      dataIndex: 'monto',
+      key: 'monto',
+      render: (monto: number) => `$${monto.toLocaleString()}`,
+      sorter: (a: MovimientoCaja, b: MovimientoCaja) => a.monto - b.monto
+    },
+    {
+      title: 'Medio de Pago',
+      dataIndex: 'medioPago',
+      key: 'medioPago',
+      render: (medio: string) => {
+        const colores = {
+          'efectivo': 'green',
+          'tarjeta': 'blue',
+          'transferencia': 'purple',
+          'otro': 'orange'
+        };
+        return <Tag color={colores[medio as keyof typeof colores]}>{medio}</Tag>;
+      },
+      filters: [
+        { text: 'Efectivo', value: 'efectivo' },
+        { text: 'Tarjeta', value: 'tarjeta' },
+        { text: 'Transferencia', value: 'transferencia' },
+        { text: 'Otro', value: 'otro' }
+      ],
+      onFilter: (value: any, record: MovimientoCaja) => record.medioPago === value
+    },
+    {
+      title: 'Categoría',
+      dataIndex: 'categoria',
+      key: 'categoria',
+      render: (categoria: string) => {
+        const nombres = {
+          'venta': 'Venta',
+          'otro_ingreso': 'Otro Ingreso',
+          'gasto': 'Gasto',
+          'retiro': 'Retiro'
+        };
+        return nombres[categoria as keyof typeof nombres];
+      }
+    },
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      width: 120,
+      render: (_: any, record: MovimientoCaja) => (
+        <Space>
+          <Button 
+            icon={<EditOutlined />} 
+            onClick={() => handleEditMovimiento(record)}
+            title="Editar"
+            size="small"
+          />
+          <Button 
+            icon={<DeleteOutlined />} 
+            onClick={() => handleDeleteMovimiento(record.id)}
+            title="Eliminar"
+            size="small"
+            danger
+          />
+        </Space>
+      )
+    }
+  ];
+
+  // Columnas para tabla de arqueos
+  const arqueosColumns = [
+    {
+      title: 'Fecha',
+      dataIndex: 'fecha',
+      key: 'fecha',
+      sorter: (a: ArqueoCaja, b: ArqueoCaja) => a.fecha.localeCompare(b.fecha)
+    },
+    {
+      title: 'Saldo Inicial',
+      dataIndex: 'saldoInicial',
+      key: 'saldoInicial',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Ventas Efectivo',
+      dataIndex: 'ventasEfectivo',
+      key: 'ventasEfectivo',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Otros Ingresos',
+      dataIndex: 'otrosIngresos',
+      key: 'otrosIngresos',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Salidas Efectivo',
+      dataIndex: 'salidasEfectivo',
+      key: 'salidasEfectivo',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Saldo Esperado',
+      dataIndex: 'saldoFinalEsperado',
+      key: 'saldoFinalEsperado',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Saldo Real',
+      dataIndex: 'saldoFinalReal',
+      key: 'saldoFinalReal',
+      render: (valor: number) => `$${valor.toLocaleString()}`
+    },
+    {
+      title: 'Diferencia',
+      dataIndex: 'diferencia',
+      key: 'diferencia',
+      render: (valor: number) => (
+        <span style={{ color: valor >= 0 ? 'green' : 'red' }}>
+          $${valor.toLocaleString()}
+        </span>
+      )
+    },
+    {
+      title: 'Estado',
+      dataIndex: 'estado',
+      key: 'estado',
+      render: (estado: string) => (
+        <Tag color={estado === 'cerrado' ? 'green' : 'orange'}>
+          {estado === 'cerrado' ? 'Cerrado' : 'Abierto'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Usuario',
+      dataIndex: 'usuario',
+      key: 'usuario'
+    }
   ];
 
   // Menú de navegación
@@ -1497,7 +1795,8 @@ const App: React.FC = () => {
     { key: '7', icon: <BarChartOutlined />, label: 'Reportes' },
     { key: '8', icon: <SettingOutlined />, label: 'Configuración' },
     { key: '9', icon: <FileTextOutlined />, label: 'Facturas' },
-    { key: '10', icon: <CalendarOutlined />, label: 'Calendario' }
+    { key: '10', icon: <CalendarOutlined />, label: 'Calendario' },
+    { key: '11', icon: <WalletOutlined />, label: 'Caja y Arqueo' }
   ];
 
   // Funciones para facturas
@@ -1600,6 +1899,223 @@ const App: React.FC = () => {
   const handleViewFactura = (factura: Factura) => {
     setSelectedFactura(factura);
     setIsFacturaDetailVisible(true);
+  };
+
+  // Funciones para caja y arqueo
+  const obtenerSaldoInicialDelDia = (fecha: string) => {
+    // Primero verificar si hay un saldo inicial configurado para ese día
+    if (saldosIniciales[fecha]) {
+      return saldosIniciales[fecha];
+    }
+    
+    // Si no hay saldo configurado, usar el último arqueo o valor por defecto
+    const arqueoAnterior = arqueosCaja
+      .filter(a => a.fecha < fecha)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+    
+    return arqueoAnterior ? arqueoAnterior.saldoFinalReal : 0;
+  };
+
+  // Función para calcular ventas en efectivo del día
+  const calcularVentasEfectivoHoy = (fecha?: string) => {
+    const fechaHoy = fecha || new Date().toISOString().split('T')[0];
+    
+    // Ventas del POS en efectivo
+    const ventasPOS = ventas
+      .filter(v => v.fecha === fechaHoy && (v.metodoPago === 'efectivo' || !v.metodoPago))
+      .reduce((total, v) => total + v.total, 0);
+    
+    // Ventas en efectivo registradas manualmente como movimientos
+    const ventasMovimientos = movimientosCaja
+      .filter(m => m.tipo === 'ingreso' && m.categoria === 'venta' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    return ventasPOS + ventasMovimientos;
+  };
+
+  const calcularSaldoActual = () => {
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    const saldoInicial = obtenerSaldoInicialDelDia(fechaHoy);
+
+    // Ventas en efectivo del día (usando la función centralizada)
+    const ventasEfectivo = calcularVentasEfectivoHoy(fechaHoy);
+
+    // Otros ingresos en efectivo del día actual
+    const otrosIngresos = movimientosCaja
+      .filter(m => m.tipo === 'ingreso' && m.categoria === 'otro_ingreso' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    // Egresos de efectivo del día actual
+    const egresos = movimientosCaja
+      .filter(m => m.tipo === 'egreso' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    return saldoInicial + ventasEfectivo + otrosIngresos - egresos;
+  };
+
+  const handleSaveSaldoInicial = (values: any) => {
+    const fecha = values.fecha.format('YYYY-MM-DD');
+    const nuevosSaldos = {
+      ...saldosIniciales,
+      [fecha]: values.saldo
+    };
+    
+    setSaldosIniciales(nuevosSaldos);
+    setIsSaldoInicialModalVisible(false);
+    saldoInicialForm.resetFields();
+    message.success(`Saldo inicial establecido para ${fecha}: $${values.saldo.toLocaleString()}`);
+  };
+
+  const handleSaveMovimiento = (values: any) => {
+    const movimientoData = {
+      ...values,
+      fecha: values.fecha.format('YYYY-MM-DD')
+    };
+
+    console.log('Guardando movimiento:', movimientoData);
+
+    if (editingMovimiento) {
+      const updatedMovimiento = { ...editingMovimiento, ...movimientoData };
+      setMovimientosCaja(movimientosCaja.map(m => 
+        m.id === editingMovimiento.id ? updatedMovimiento : m
+      ));
+      message.success('Movimiento actualizado correctamente');
+    } else {
+      const newMovimiento: MovimientoCaja = {
+        id: Date.now(),
+        ...movimientoData
+      };
+      console.log('Nuevo movimiento creado:', newMovimiento);
+      const nuevosMovimientos = [...movimientosCaja, newMovimiento];
+      console.log('Total movimientos después de agregar:', nuevosMovimientos.length);
+      setMovimientosCaja(nuevosMovimientos);
+      message.success('Movimiento registrado correctamente');
+    }
+
+    setIsMovimientoModalVisible(false);
+    setEditingMovimiento(null);
+    cajaForm.resetFields();
+  };
+
+  const handleEditMovimiento = (movimiento: MovimientoCaja) => {
+    setEditingMovimiento(movimiento);
+    cajaForm.setFieldsValue({
+      ...movimiento,
+      fecha: dayjs(movimiento.fecha)
+    });
+    setIsMovimientoModalVisible(true);
+  };
+
+  const handleDeleteMovimiento = (id: number) => {
+    setMovimientosCaja(movimientosCaja.filter(m => m.id !== id));
+    message.success('Movimiento eliminado correctamente');
+  };
+
+  const iniciarArqueoCaja = () => {
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    
+    // Ventas en efectivo del día desde el punto de venta
+    const ventasEfectivoDirectas = ventas
+      .filter(v => v.fecha === fechaHoy && (v.metodoPago === 'efectivo' || !v.metodoPago))
+      .reduce((total, v) => total + v.total, 0);
+    
+    // Ventas en efectivo registradas como movimientos de caja (con categoría 'venta')
+    const ventasEfectivoMovimientos = movimientosCaja
+      .filter(m => m.tipo === 'ingreso' && m.categoria === 'venta' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    // Otros ingresos en efectivo registrados manualmente (categoría 'otro_ingreso')
+    const otrosIngresosEfectivo = movimientosCaja
+      .filter(m => m.tipo === 'ingreso' && m.categoria === 'otro_ingreso' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    // Total de ventas en efectivo (POS + movimientos manuales de venta)
+    const ventasEfectivo = ventasEfectivoDirectas + ventasEfectivoMovimientos;
+    const otrosIngresos = otrosIngresosEfectivo;
+    
+    // Ventas con otros medios de pago (tarjeta, transferencia, etc.)
+    const ventasOtrosMediosPOS = ventas
+      .filter(v => v.fecha === fechaHoy && v.metodoPago && v.metodoPago !== 'efectivo')
+      .reduce((total, v) => total + v.total, 0);
+    
+    const ventasOtrosMediosMovimientos = movimientosCaja
+      .filter(m => m.tipo === 'ingreso' && m.categoria === 'venta' && m.medioPago !== 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+    
+    const ventasOtrosMedios = ventasOtrosMediosPOS + ventasOtrosMediosMovimientos;
+    
+    // Salidas de efectivo del día (egresos registrados manualmente)
+    const salidasEfectivo = movimientosCaja
+      .filter(m => m.tipo === 'egreso' && m.medioPago === 'efectivo' && m.fecha === fechaHoy)
+      .reduce((total, m) => total + m.monto, 0);
+
+    // Saldo inicial del día
+    const saldoInicial = obtenerSaldoInicialDelDia(fechaHoy);
+
+    console.log('Calculando arqueo:', {
+      fechaHoy,
+      saldoInicial,
+      ventasEfectivoDirectas,
+      ventasEfectivoMovimientos,
+      ventasEfectivo,
+      otrosIngresosEfectivo,
+      otrosIngresos,
+      ventasOtrosMediosPOS,
+      ventasOtrosMediosMovimientos,
+      ventasOtrosMedios,
+      salidasEfectivo,
+      totalMovimientos: movimientosCaja.length,
+      movimientosHoy: movimientosCaja.filter(m => m.fecha === fechaHoy).length,
+      ventasHoy: ventas.filter(v => v.fecha === fechaHoy).length
+    });
+
+    const nuevoArqueo: ArqueoCaja = {
+      id: Date.now(),
+      fecha: fechaHoy,
+      saldoInicial,
+      ventasEfectivo,
+      otrosIngresos,
+      ventasOtrosMedios,
+      salidasEfectivo,
+      saldoFinalEsperado: saldoInicial + ventasEfectivo + otrosIngresos - salidasEfectivo,
+      saldoFinalReal: 0,
+      diferencia: 0,
+      estado: 'abierto',
+      usuario: currentUser?.nombre || 'Usuario'
+    };
+
+    setArqueoActual(nuevoArqueo);
+    arqueoForm.setFieldsValue({
+      saldoInicial: nuevoArqueo.saldoInicial,
+      ventasEfectivo: nuevoArqueo.ventasEfectivo,
+      otrosIngresos: nuevoArqueo.otrosIngresos,
+      ventasOtrosMedios: nuevoArqueo.ventasOtrosMedios,
+      salidasEfectivo: nuevoArqueo.salidasEfectivo,
+      saldoFinalEsperado: nuevoArqueo.saldoFinalEsperado
+    });
+    setIsArqueoModalVisible(true);
+  };
+
+  const handleFinalizarArqueo = (values: any) => {
+    if (arqueoActual) {
+      const saldoFinalReal = values.saldoFinalReal;
+      const diferencia = saldoFinalReal - arqueoActual.saldoFinalEsperado;
+      
+      const arqueoFinalizado: ArqueoCaja = {
+        ...arqueoActual,
+        saldoFinalReal,
+        diferencia,
+        observaciones: values.observaciones,
+        estado: 'cerrado'
+      };
+
+      setArqueosCaja([...arqueosCaja, arqueoFinalizado]);
+      message.success('Arqueo de caja finalizado correctamente');
+      
+      setIsArqueoModalVisible(false);
+      setArqueoActual(null);
+      arqueoForm.resetFields();
+    }
   };
 
   // Funciones para calendario
@@ -2137,7 +2653,10 @@ const App: React.FC = () => {
     switch (selectedKey) {
       case '1': // Dashboard
         const totalIngresos = ventas.reduce((total, venta) => total + venta.total, 0);
-        const totalGastos = pedidosProcesados.reduce((total, pedido) => total + pedido.total, 0) + (totalIngresos * 0.3);
+        const totalEgresosRegistrados = movimientosCaja
+          .filter(mov => mov.tipo === 'egreso')
+          .reduce((total, egreso) => total + egreso.monto, 0);
+        const totalGastos = pedidosProcesados.reduce((total, pedido) => total + pedido.total, 0) + totalEgresosRegistrados;
         const gananciaNeta = totalIngresos - totalGastos;
         const productosStockBajo = productos.filter(p => p.stock < 10);
         const ventasHoy = ventas.filter(v => v.fecha === new Date().toISOString().split('T')[0]);
@@ -2837,7 +3356,7 @@ const App: React.FC = () => {
                   onClick={() => {
                     inventoryForm.setFieldsValue({
                       producto: record.nombre,
-                      tipo: 'entrada',
+                      tipo: 'ingreso',
                       fecha: new Date()
                     });
                     setIsInventoryModalVisible(true);
@@ -3841,11 +4360,14 @@ const App: React.FC = () => {
         const ventasPorCategoria = calcularVentasPorCategoria();
         const totalVentas = ventas.reduce((sum, venta) => sum + venta.total, 0);
         const totalCompras = pedidosProcesados.reduce((sum, pedido) => sum + pedido.total, 0);
-        const totalGastosReporte = totalCompras + (totalVentas * 0.3); // Gastos operativos estimados
+        const totalEgresosReales = movimientosCaja
+          .filter(mov => mov.tipo === 'egreso')
+          .reduce((sum, egreso) => sum + egreso.monto, 0);
+        const totalGastosReporte = totalCompras + totalEgresosReales; // Gastos reales: compras + egresos registrados
         
         return (
           <div className="p-6">
-            <Title level={2} className="mb-6">Reportes y Análisis Financiero</Title>
+            <Title level={2} className="mb-6">Reportes y Análisis Financiero - Datos Reales del Usuario</Title>
             
             {/* KPIs Principales */}
             <Row gutter={[16, 16]} className="mb-6">
@@ -3873,7 +4395,7 @@ const App: React.FC = () => {
                     valueStyle={{ color: 'white' }}
                   />
                   <div className="text-sm opacity-75 mt-2">
-                    Operativos + Compras
+                    Egresos + Compras Reales
                   </div>
                 </Card>
               </Col>
@@ -4035,7 +4557,7 @@ const App: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
                             <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
-                            <span className="text-sm">Gastos Operativos</span>
+                            <span className="text-sm">Egresos Registrados</span>
                           </div>
                           <span className="text-sm font-medium">${(totalGastosReporte - totalCompras).toFixed(0)}</span>
                         </div>
@@ -4148,6 +4670,109 @@ const App: React.FC = () => {
               </Col>
             </Row>
 
+            {/* Análisis de Movimientos de Caja Reales */}
+            <Row gutter={[16, 16]} className="mb-6">
+              <Col span={24}>
+                <Card title="Análisis de Movimientos de Caja - Datos Reales del Usuario">
+                  <Row gutter={[16, 16]}>
+                    <Col span={6}>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          ${movimientosCaja.filter(mov => mov.tipo === 'ingreso').reduce((sum, mov) => sum + mov.monto, 0).toFixed(0)}
+                        </div>
+                        <div className="text-sm text-green-700">Ingresos Registrados</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {movimientosCaja.filter(mov => mov.tipo === 'ingreso').length} movimientos
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div className="text-center p-4 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-600">
+                          ${movimientosCaja.filter(mov => mov.tipo === 'egreso').reduce((sum, mov) => sum + mov.monto, 0).toFixed(0)}
+                        </div>
+                        <div className="text-sm text-red-700">Egresos Registrados</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {movimientosCaja.filter(mov => mov.tipo === 'egreso').length} movimientos
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          ${Object.values(saldosIniciales).reduce((sum, saldo) => sum + saldo, 0).toFixed(0)}
+                        </div>
+                        <div className="text-sm text-blue-700">Saldos Iniciales</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {Object.keys(saldosIniciales).length} días configurados
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          ${arqueosCaja.length > 0 ? arqueosCaja[arqueosCaja.length - 1].saldoFinalReal.toFixed(0) : '0'}
+                        </div>
+                        <div className="text-sm text-purple-700">Último Saldo Real</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {arqueosCaja.length} arqueos realizados
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                  
+                  {/* Desglose por categorías de movimientos */}
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <h4 className="text-lg font-medium mb-4">Categorización de Movimientos</h4>
+                    <Row gutter={[16, 16]}>
+                      <Col span={12}>
+                        <div className="space-y-3">
+                          <h5 className="font-medium text-green-600">Ingresos por Categoría</h5>
+                          {(() => {
+                            const ingresosPorCategoria = movimientosCaja
+                              .filter(mov => mov.tipo === 'ingreso')
+                              .reduce((acc, mov) => {
+                                const categoria = mov.categoria || 'Otros';
+                                acc[categoria] = (acc[categoria] || 0) + mov.monto;
+                                return acc;
+                              }, {} as { [key: string]: number });
+                            
+                            return Object.entries(ingresosPorCategoria).map(([categoria, monto]) => (
+                              <div key={categoria} className="flex justify-between items-center">
+                                <span className="text-sm">{categoria === 'venta' ? 'Ventas en Efectivo' : categoria === 'otro_ingreso' ? 'Otros Ingresos' : categoria}</span>
+                                <span className="font-medium text-green-600">${monto.toFixed(0)}</span>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div className="space-y-3">
+                          <h5 className="font-medium text-red-600">Egresos por Categoría</h5>
+                          {(() => {
+                            const egresosPorCategoria = movimientosCaja
+                              .filter(mov => mov.tipo === 'egreso')
+                              .reduce((acc, mov) => {
+                                const categoria = mov.categoria || 'Otros';
+                                acc[categoria] = (acc[categoria] || 0) + mov.monto;
+                                return acc;
+                              }, {} as { [key: string]: number });
+                            
+                            return Object.entries(egresosPorCategoria).map(([categoria, monto]) => (
+                              <div key={categoria} className="flex justify-between items-center">
+                                <span className="text-sm">{categoria}</span>
+                                <span className="font-medium text-red-600">${monto.toFixed(0)}</span>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </Col>
+                    </Row>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+
             {/* Tabla de Análisis Detallado */}
             <Row gutter={[16, 16]} className="mt-6">
               <Col span={24}>
@@ -4213,6 +4838,73 @@ const App: React.FC = () => {
                     pagination={false}
                     size="small"
                   />
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Flujo de Caja Diario Real */}
+            <Row gutter={[16, 16]} className="mt-6">
+              <Col span={24}>
+                <Card title="Flujo de Caja Diario - Movimientos Reales del Usuario">
+                  {(() => {
+                    const flujoDiario = calcularFlujoCajaReal();
+                    return (
+                      <div className="space-y-4">
+                        {flujoDiario.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {flujoDiario.map((dia) => (
+                              <div key={dia.fecha} className="border rounded-lg p-4 bg-gray-50">
+                                <div className="flex justify-between items-center mb-3">
+                                  <h4 className="font-medium text-gray-800">
+                                    {new Date(dia.fecha).toLocaleDateString('es-ES', { 
+                                      weekday: 'short', 
+                                      month: 'short', 
+                                      day: 'numeric' 
+                                    })}
+                                  </h4>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    dia.diferencia >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {dia.diferencia >= 0 ? '+' : ''}${dia.diferencia.toFixed(0)}
+                                  </span>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Saldo Inicial:</span>
+                                    <span className="font-medium">${dia.saldoInicial.toFixed(0)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-green-600">Ingresos:</span>
+                                    <span className="font-medium text-green-600">+${dia.ingresos.toFixed(0)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-red-600">Egresos:</span>
+                                    <span className="font-medium text-red-600">-${dia.egresos.toFixed(0)}</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-gray-200">
+                                    <div className="flex justify-between">
+                                      <span className="font-medium text-gray-800">Saldo Final:</span>
+                                      <span className={`font-bold ${
+                                        dia.saldoFinal >= 0 ? 'text-green-600' : 'text-red-600'
+                                      }`}>
+                                        ${dia.saldoFinal.toFixed(0)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <DollarCircleOutlined className="text-4xl mb-2" />
+                            <p>No hay movimientos de caja registrados</p>
+                            <p className="text-sm mt-2">Los movimientos aparecerán aquí cuando registres ingresos, egresos o realices ventas</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </Card>
               </Col>
             </Row>
@@ -4692,7 +5384,7 @@ const App: React.FC = () => {
         return (
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <Title level={2}>💼 Gestión de Facturas</Title>
+              <Title level={2}>Gestión de Facturas</Title>
               <Space>
                 <Button 
                   icon={<FileExcelOutlined />}
@@ -5033,13 +5725,9 @@ const App: React.FC = () => {
 
     case '10': // Calendario y Eventos Completo
       return (
-        <div className="space-y-6">
-          {/* Header del Calendario */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Calendario y Eventos</h2>
-              <p className="text-gray-300 text-sm">Gestiona tus eventos, reuniones y tareas</p>
-            </div>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <Title level={2}>Calendario y Eventos</Title>
             <div className="flex flex-wrap gap-2">
               <Button.Group>
                 <Button 
@@ -5087,7 +5775,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Navegación del calendario */}
-          <div className="bg-white/30 backdrop-blur-lg rounded-xl p-4 border border-white/40 shadow-xl">
+          <div className="bg-white/30 backdrop-blur-lg rounded-xl p-4 border border-white/40 shadow-xl mt-6">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
                 <Button 
@@ -5148,13 +5836,15 @@ const App: React.FC = () => {
           </div>
 
           {/* Vista del calendario */}
-          {calendarView === 'month' && renderMonthView()}
-          {calendarView === 'week' && renderWeekView()}
-          {calendarView === 'day' && renderDayView()}
-          {calendarView === 'list' && renderListView()}
+          <div className="mt-6">
+            {calendarView === 'month' && renderMonthView()}
+            {calendarView === 'week' && renderWeekView()}
+            {calendarView === 'day' && renderDayView()}
+            {calendarView === 'list' && renderListView()}
+          </div>
 
           {/* Panel lateral con resumen */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
             {/* Estadísticas rápidas */}
             <div className="bg-gradient-to-br from-blue-500/30 to-purple-500/30 backdrop-blur-lg rounded-xl p-6 border border-white/40 shadow-xl">
               <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b border-white/30 pb-2">📊 Resumen</h4>
@@ -5432,6 +6122,446 @@ const App: React.FC = () => {
                 </Button>
                 <Button type="primary" htmlType="submit" size="large">
                   {editingEvento ? 'Actualizar Evento' : 'Crear Evento'}
+                </Button>
+              </div>
+            </Form>
+          </Modal>
+        </div>
+      );
+
+    case '11': // Caja y Arqueo
+      return (
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <Title level={2}>Caja y Arqueo</Title>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => setIsMovimientoModalVisible(true)}
+                className="bg-green-600 border-green-500 hover:bg-green-700"
+              >
+                Nuevo Movimiento
+              </Button>
+              <Button 
+                type="default" 
+                icon={<WalletOutlined />}
+                onClick={() => setIsSaldoInicialModalVisible(true)}
+                className="bg-orange-600 border-orange-500 text-white hover:bg-orange-700"
+              >
+                Saldo Inicial
+              </Button>
+              <Button 
+                type="default" 
+                icon={<CalculatorOutlined />}
+                onClick={() => {
+                  console.log('Estado actual de movimientos de caja:', movimientosCaja);
+                  console.log('Fecha de hoy:', new Date().toISOString().split('T')[0]);
+                  iniciarArqueoCaja();
+                }}
+                className="bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+              >
+                Iniciar Arqueo
+              </Button>
+            </div>
+          </div>
+
+          {/* Resumen de Caja */}
+          <Row gutter={[16, 16]} className="mt-6">
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="bg-green-50 border-green-200">
+                <Statistic
+                  title="Saldo Actual"
+                  value={calcularSaldoActual()}
+                  prefix={<DollarOutlined className="text-green-600" />}
+                  valueStyle={{ color: '#16a085' }}
+                  formatter={(value) => `$${Number(value).toLocaleString()}`}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="bg-blue-50 border-blue-200">
+                <Statistic
+                  title="Ingresos Hoy"
+                  value={movimientosCaja
+                    .filter(m => m.tipo === 'ingreso' && m.fecha === new Date().toISOString().split('T')[0])
+                    .reduce((total, m) => total + m.monto, 0)
+                  }
+                  prefix={<DollarOutlined className="text-blue-600" />}
+                  valueStyle={{ color: '#3498db' }}
+                  formatter={(value) => `$${Number(value).toLocaleString()}`}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="bg-red-50 border-red-200">
+                <Statistic
+                  title="Egresos Hoy"
+                  value={movimientosCaja
+                    .filter(m => m.tipo === 'egreso' && m.fecha === new Date().toISOString().split('T')[0])
+                    .reduce((total, m) => total + m.monto, 0)
+                  }
+                  prefix={<DollarOutlined className="text-red-600" />}
+                  valueStyle={{ color: '#e74c3c' }}
+                  formatter={(value) => `$${Number(value).toLocaleString()}`}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="bg-yellow-50 border-yellow-200">
+                <Statistic
+                  title="Ventas Efectivo Hoy"
+                  value={calcularVentasEfectivoHoy()}
+                  prefix={<WalletOutlined className="text-yellow-600" />}
+                  valueStyle={{ color: '#f39c12' }}
+                  formatter={(value) => `$${Number(value).toLocaleString()}`}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Tabla de Movimientos */}
+          <Card title="Movimientos de Caja" className="shadow-sm mt-6">
+            <Table
+              dataSource={movimientosCaja}
+              columns={movimientosColumns}
+              rowKey="id"
+              pagination={{ pageSize: 10 }}
+              scroll={{ x: 800 }}
+            />
+          </Card>
+
+          {/* Tabla de Arqueos */}
+          <Card title="Historial de Arqueos" className="shadow-sm mt-6">
+            <Table
+              dataSource={arqueosCaja}
+              columns={arqueosColumns}
+              rowKey="id"
+              pagination={{ pageSize: 5 }}
+              scroll={{ x: 1000 }}
+            />
+          </Card>
+
+          {/* Modal Nuevo Movimiento */}
+          <Modal
+            title={editingMovimiento ? "Editar Movimiento" : "Nuevo Movimiento"}
+            open={isMovimientoModalVisible}
+            onCancel={() => {
+              setIsMovimientoModalVisible(false);
+              setEditingMovimiento(null);
+              cajaForm.resetFields();
+            }}
+            footer={null}
+            width={600}
+          >
+            <Form
+              form={cajaForm}
+              layout="vertical"
+              onFinish={handleSaveMovimiento}
+              className="space-y-4"
+            >
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item 
+                    name="fecha" 
+                    label="Fecha" 
+                    rules={[{ required: true, message: 'Selecciona la fecha' }]}
+                    initialValue={dayjs()}
+                  >
+                    <DatePicker style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item 
+                    name="tipo" 
+                    label="Tipo" 
+                    rules={[{ required: true, message: 'Selecciona el tipo' }]}
+                  >
+                    <Select placeholder="Seleccionar tipo">
+                      <Option value="ingreso">Ingreso</Option>
+                      <Option value="egreso">Egreso</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item 
+                name="concepto" 
+                label="Concepto" 
+                rules={[{ required: true, message: 'Ingresa el concepto' }]}
+              >
+                <Input placeholder="Ej: Venta de productos, Compra de suministros" />
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item 
+                    name="monto" 
+                    label="Monto" 
+                    rules={[{ required: true, message: 'Ingresa el monto' }]}
+                  >
+                    <InputNumber 
+                      style={{ width: '100%' }} 
+                      placeholder="0"
+                      formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item 
+                    name="medioPago" 
+                    label="Medio de Pago" 
+                    rules={[{ required: true, message: 'Selecciona el medio' }]}
+                  >
+                    <Select placeholder="Seleccionar medio">
+                      <Option value="efectivo">Efectivo</Option>
+                      <Option value="tarjeta">Tarjeta</Option>
+                      <Option value="transferencia">Transferencia</Option>
+                      <Option value="otro">Otro</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item 
+                name="categoria" 
+                label="Categoría" 
+                rules={[{ required: true, message: 'Selecciona la categoría' }]}
+              >
+                <Select placeholder="Seleccionar categoría">
+                  <Option value="venta">Venta</Option>
+                  <Option value="otro_ingreso">Otro Ingreso</Option>
+                  <Option value="gasto">Gasto</Option>
+                  <Option value="retiro">Retiro</Option>
+                </Select>
+              </Form.Item>
+              
+              <Form.Item name="descripcion" label="Descripción">
+                <TextArea rows={3} placeholder="Descripción adicional (opcional)" />
+              </Form.Item>
+              
+              <div className="flex justify-end space-x-2">
+                <Button onClick={() => {
+                  setIsMovimientoModalVisible(false);
+                  setEditingMovimiento(null);
+                  cajaForm.resetFields();
+                }}>
+                  Cancelar
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  {editingMovimiento ? 'Actualizar' : 'Guardar'}
+                </Button>
+              </div>
+            </Form>
+          </Modal>
+
+          {/* Modal Arqueo de Caja */}
+          <Modal
+            title="Arqueo de Caja"
+            open={isArqueoModalVisible}
+            onCancel={() => {
+              setIsArqueoModalVisible(false);
+              setArqueoActual(null);
+              arqueoForm.resetFields();
+            }}
+            footer={null}
+            width={700}
+          >
+            <Form
+              form={arqueoForm}
+              layout="vertical"
+              onFinish={handleFinalizarArqueo}
+              className="space-y-4"
+            >
+              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Resumen del Día</h3>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="Saldo Inicial" name="saldoInicial">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Ventas en Efectivo" name="ventasEfectivo">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Otros Ingresos" name="otrosIngresos">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Ventas Otros Medios" name="ventasOtrosMedios">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Salidas en Efectivo" name="salidasEfectivo">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Saldo Final Esperado" name="saldoFinalEsperado">
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        disabled
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Conteo Real</h3>
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item 
+                      label="Saldo Final Real (Conteo físico)" 
+                      name="saldoFinalReal"
+                      rules={[{ required: true, message: 'Ingresa el saldo real contado' }]}
+                    >
+                      <InputNumber 
+                        style={{ width: '100%' }} 
+                        placeholder="Dinero contado en caja"
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="Observaciones" name="observaciones">
+                      <TextArea 
+                        rows={3} 
+                        placeholder="Notas sobre diferencias o eventos especiales del día"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button onClick={() => {
+                  setIsArqueoModalVisible(false);
+                  setArqueoActual(null);
+                  arqueoForm.resetFields();
+                }}>
+                  Cancelar
+                </Button>
+                <Button type="primary" htmlType="submit" icon={<CheckOutlined />}>
+                  Finalizar Arqueo
+                </Button>
+              </div>
+            </Form>
+          </Modal>
+
+          {/* Modal Saldo Inicial */}
+          <Modal
+            title="Configurar Saldo Inicial"
+            open={isSaldoInicialModalVisible}
+            onCancel={() => {
+              setIsSaldoInicialModalVisible(false);
+              saldoInicialForm.resetFields();
+            }}
+            footer={null}
+            width={500}
+          >
+            <Form
+              form={saldoInicialForm}
+              layout="vertical"
+              onFinish={handleSaveSaldoInicial}
+              initialValues={{
+                fecha: dayjs(),
+                saldo: obtenerSaldoInicialDelDia(new Date().toISOString().split('T')[0])
+              }}
+            >
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">💰 Establecer Saldo Inicial</h3>
+                <p className="text-gray-600 text-sm">
+                  Configure el saldo con el que inicia la caja para un día específico. 
+                  Esto será usado como base para los cálculos de arqueo.
+                </p>
+              </div>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item 
+                    name="fecha" 
+                    label="Fecha" 
+                    rules={[{ required: true, message: 'Selecciona la fecha' }]}
+                  >
+                    <DatePicker 
+                      style={{ width: '100%' }} 
+                      format="DD/MM/YYYY"
+                      onChange={(date) => {
+                        if (date) {
+                          const fechaStr = date.format('YYYY-MM-DD');
+                          const saldoExistente = obtenerSaldoInicialDelDia(fechaStr);
+                          saldoInicialForm.setFieldsValue({ saldo: saldoExistente });
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item 
+                    name="saldo" 
+                    label="Saldo Inicial" 
+                    rules={[{ required: true, message: 'Ingresa el saldo inicial' }]}
+                  >
+                    <InputNumber 
+                      style={{ width: '100%' }} 
+                      placeholder="Monto inicial"
+                      min={0}
+                      addonBefore="$"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                <div className="text-sm text-gray-600">
+                  <strong>Información actual:</strong>
+                  <div className="mt-2">
+                    • Último arqueo: ${arqueosCaja.length > 0 ? arqueosCaja[arqueosCaja.length - 1].saldoFinalReal.toLocaleString() : 'N/A'}
+                  </div>
+                  <div>
+                    • Saldo actual calculado: ${calcularSaldoActual().toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button onClick={() => {
+                  setIsSaldoInicialModalVisible(false);
+                  saldoInicialForm.resetFields();
+                }}>
+                  Cancelar
+                </Button>
+                <Button type="primary" htmlType="submit" icon={<WalletOutlined />}>
+                  Establecer Saldo
                 </Button>
               </div>
             </Form>
