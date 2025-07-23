@@ -119,8 +119,8 @@ class Customer(TenantAwareModel):
         return 0
 
 
-class CustomerAddress(models.Model):
-    """Direcciones adicionales del cliente"""
+class CustomerAddress(TenantAwareModel):
+    """Direcciones adicionales del cliente - Aislado por tenant"""
     ADDRESS_TYPES = [
         ('billing', 'Facturación'),
         ('shipping', 'Envío'),
@@ -138,6 +138,9 @@ class CustomerAddress(models.Model):
     country = models.CharField(max_length=100, default='Venezuela', verbose_name="País")
     is_default = models.BooleanField(default=False, verbose_name="Dirección por defecto")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
 
     class Meta:
@@ -148,8 +151,8 @@ class CustomerAddress(models.Model):
         return f"{self.customer} - {self.label}"
 
 
-class CustomerContact(models.Model):
-    """Contactos adicionales del cliente"""
+class CustomerContact(TenantAwareModel):
+    """Contactos adicionales del cliente - Aislado por tenant"""
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='contacts', verbose_name="Cliente")
     name = models.CharField(max_length=200, verbose_name="Nombre del contacto")
     position = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cargo")
@@ -158,7 +161,9 @@ class CustomerContact(models.Model):
     mobile = models.CharField(max_length=20, blank=True, null=True, verbose_name="Móvil")
     is_primary = models.BooleanField(default=False, verbose_name="Contacto principal")
     notes = models.TextField(blank=True, null=True, verbose_name="Notas")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Contacto de cliente"

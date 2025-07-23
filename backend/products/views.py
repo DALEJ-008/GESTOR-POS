@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
+from gestor_pos.viewsets import TenantAwareViewSet
 from .models import Category, Brand, Product, ProductVariant, ProductAttribute
 from .serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer, 
@@ -10,7 +11,7 @@ from .serializers import (
 )
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(TenantAwareViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -20,7 +21,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
 
-class BrandViewSet(viewsets.ModelViewSet):
+class BrandViewSet(TenantAwareViewSet):
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -30,7 +31,7 @@ class BrandViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
 
-class ProductAttributeViewSet(viewsets.ModelViewSet):
+class ProductAttributeViewSet(TenantAwareViewSet):
     queryset = ProductAttribute.objects.all()
     serializer_class = ProductAttributeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -38,7 +39,7 @@ class ProductAttributeViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(TenantAwareViewSet):
     queryset = Product.objects.select_related('category', 'brand').prefetch_related('variants')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'brand', 'is_active', 'is_service', 'has_variants']
@@ -99,7 +100,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                               status=status.HTTP_404_NOT_FOUND)
 
 
-class ProductVariantViewSet(viewsets.ModelViewSet):
+class ProductVariantViewSet(TenantAwareViewSet):
     queryset = ProductVariant.objects.select_related('product')
     serializer_class = ProductVariantSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

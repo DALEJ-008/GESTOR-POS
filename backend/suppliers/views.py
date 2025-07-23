@@ -7,6 +7,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+from gestor_pos.viewsets import TenantAwareViewSet
 
 from .models import Supplier, SupplierCategory, SupplierContact, SupplierProduct
 from .serializers import (
@@ -15,10 +16,9 @@ from .serializers import (
 )
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
+class SupplierViewSet(TenantAwareViewSet):
     """ViewSet para proveedores"""
     queryset = Supplier.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'status', 'payment_terms', 'country']
     search_fields = ['name', 'nif', 'email', 'phone', 'contact_person']
@@ -112,11 +112,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SupplierCategoryViewSet(viewsets.ModelViewSet):
+class SupplierCategoryViewSet(TenantAwareViewSet):
     """ViewSet para categorías de proveedores"""
     queryset = SupplierCategory.objects.all()
     serializer_class = SupplierCategorySerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_at']
@@ -137,11 +136,10 @@ class SupplierCategoryViewSet(viewsets.ModelViewSet):
         })
 
 
-class SupplierContactViewSet(viewsets.ModelViewSet):
+class SupplierContactViewSet(TenantAwareViewSet):
     """ViewSet para contactos de proveedores"""
     queryset = SupplierContact.objects.all()
     serializer_class = SupplierContactSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['supplier', 'is_primary']
     search_fields = ['name', 'email', 'phone', 'position']
@@ -156,15 +154,15 @@ class SupplierContactViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class SupplierProductViewSet(viewsets.ModelViewSet):
+class SupplierProductViewSet(TenantAwareViewSet):
     """ViewSet para productos de proveedores"""
     queryset = SupplierProduct.objects.all()
     serializer_class = SupplierProductSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['supplier', 'product', 'is_active']
     search_fields = ['supplier__name', 'product__name', 'supplier_code']
     ordering_fields = ['cost', 'updated_at']
+    ordering = ['-updated_at']
     ordering = ['-updated_at']
 
     @action(detail=False, methods=['get'])

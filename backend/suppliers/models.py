@@ -1,25 +1,29 @@
 from django.db import models
 from django.core.validators import EmailValidator
+from gestor_pos.models import TenantAwareModel, TenantAwareManager
 
 
-class SupplierCategory(models.Model):
-    """Categoría de proveedores"""
+class SupplierCategory(TenantAwareModel):
+    """Categoría de proveedores - Aislado por tenant"""
     name = models.CharField(max_length=100, verbose_name="Nombre")
     description = models.TextField(blank=True, null=True, verbose_name="Descripción")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Categoría de proveedor"
         verbose_name_plural = "Categorías de proveedores"
         ordering = ['name']
+        unique_together = ['tenant', 'name']  # Nombre único por tenant
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.tenant.name})"
 
 
-class Supplier(models.Model):
-    """Proveedor"""
+class Supplier(TenantAwareModel):
+    """Proveedor - Aislado por tenant"""
     DOCUMENT_TYPES = [
         ('rif', 'RIF'),
         ('cedula', 'Cédula'),
@@ -40,7 +44,7 @@ class Supplier(models.Model):
     company_name = models.CharField(max_length=200, verbose_name="Nombre de empresa")
     trade_name = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nombre comercial")
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='rif', verbose_name="Tipo de documento")
-    document_number = models.CharField(max_length=50, unique=True, verbose_name="Número de documento")
+    document_number = models.CharField(max_length=50, verbose_name="Número de documento")
     supplier_type = models.CharField(max_length=20, choices=SUPPLIER_TYPES, default='distributor', verbose_name="Tipo de proveedor")
     category = models.ForeignKey(SupplierCategory, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Categoría")
     
@@ -48,6 +52,9 @@ class Supplier(models.Model):
     contact_name = models.CharField(max_length=200, verbose_name="Nombre del contacto")
     contact_position = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cargo del contacto")
     email = models.EmailField(blank=True, null=True, validators=[EmailValidator()], verbose_name="Email")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono")
     mobile = models.CharField(max_length=20, blank=True, null=True, verbose_name="Móvil")
     fax = models.CharField(max_length=20, blank=True, null=True, verbose_name="Fax")
@@ -118,8 +125,8 @@ class Supplier(models.Model):
         return max(0, self.credit_limit - self.current_debt)
 
 
-class SupplierContact(models.Model):
-    """Contactos adicionales del proveedor"""
+class SupplierContact(TenantAwareModel):
+    """Contactos adicionales del proveedor - Aislado por tenant"""
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='contacts', verbose_name="Proveedor")
     name = models.CharField(max_length=200, verbose_name="Nombre del contacto")
     position = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cargo")
@@ -130,7 +137,9 @@ class SupplierContact(models.Model):
     extension = models.CharField(max_length=10, blank=True, null=True, verbose_name="Extensión")
     is_primary = models.BooleanField(default=False, verbose_name="Contacto principal")
     notes = models.TextField(blank=True, null=True, verbose_name="Notas")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Contacto de proveedor"
@@ -140,8 +149,8 @@ class SupplierContact(models.Model):
         return f"{self.supplier} - {self.name}"
 
 
-class SupplierProduct(models.Model):
-    """Productos ofrecidos por el proveedor"""
+class SupplierProduct(TenantAwareModel):
+    """Productos ofrecidos por el proveedor - Aislado por tenant"""
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='products', verbose_name="Proveedor")
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE, verbose_name="Producto")
     supplier_sku = models.CharField(max_length=100, verbose_name="SKU del proveedor")
@@ -152,13 +161,14 @@ class SupplierProduct(models.Model):
     is_preferred = models.BooleanField(default=False, verbose_name="Proveedor preferido para este producto")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
     notes = models.TextField(blank=True, null=True, verbose_name="Notas")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Producto de proveedor"
         verbose_name_plural = "Productos de proveedores"
-        unique_together = ['supplier', 'product']
+        unique_together = ['tenant', 'supplier', 'product']
 
     def __str__(self):
         return f"{self.supplier} - {self.product}"

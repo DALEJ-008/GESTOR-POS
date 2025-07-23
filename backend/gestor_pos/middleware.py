@@ -37,24 +37,39 @@ class TenantMiddleware(MiddlewareMixin):
         if request.user and request.user.is_authenticated:
             set_current_user(request.user)
             
-            # Obtener o crear el tenant para este usuario
-            # Por simplicidad, cada usuario tendrá su propio tenant
-            tenant, created = Tenant.objects.get_or_create(
-                name=f"Empresa de {request.user.username}",
-                defaults={
-                    'contact_email': request.user.email or f"{request.user.username}@example.com",
-                    'description': f"Empresa personal de {request.user.get_full_name() or request.user.username}",
-                }
-            )
-            
-            # Asociar el usuario con el tenant si no existe la relación
-            from tenants.models import UserTenant
-            UserTenant.objects.get_or_create(
-                user=request.user,
-                tenant=tenant,
-                defaults={'role': 'admin'}  # El usuario es admin de su propia empresa
-            )
-            
-            set_current_tenant(tenant)
+            try:
+                # Buscar si el usuario ya tiene un tenant asociado
+                from tenants.models import UserTenant
+                user_tenant = UserTenant.objects.select_related('tenant').filter(
+                    user=request.user,
+                    is_active=True
+                ).first()
+                
+                if user_tenant:
+                    # Usuario ya tiene tenant asignado
+                    tenant = user_tenant.tenant
+                else:
+                    # Crear tenant único para este usuario
+                    tenant, created = Tenant.objects.get_or_create(
+                        name=f"Empresa de {request.user.username}",
+                        defaults={
+                            'contact_email': request.user.email or f"{request.user.username}@example.com",
+                            'description': f"Empresa personal de {request.user.get_full_name() or request.user.username}",
+                        }
+                    )
+                    
+                    # Asociar el usuario con el tenant
+                    UserTenant.objects.get_or_create(
+                        user=request.user,
+                        tenant=tenant,
+                        defaults={'role': 'admin'}  # El usuario es admin de su propia empresa
+                    )
+                
+                set_current_tenant(tenant)
+                
+            except Exception as e:
+                # Log el error y continuar sin tenant para evitar romper la aplicación
+                print(f"Error en TenantMiddleware: {e}")
+                pass
         
         return None

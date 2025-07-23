@@ -4,10 +4,11 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 from customers.models import Customer
 from products.models import Product, ProductVariant
+from gestor_pos.models import TenantAwareModel, TenantAwareManager
 
 
-class Sale(models.Model):
-    """Venta principal"""
+class Sale(TenantAwareModel):
+    """Venta principal - Aislado por tenant"""
     STATUS_CHOICES = [
         ('draft', 'Borrador'),
         ('pending', 'Pendiente'),
@@ -27,7 +28,7 @@ class Sale(models.Model):
     ]
 
     # Identificación
-    sale_number = models.CharField(max_length=50, unique=True, verbose_name="Número de venta")
+    sale_number = models.CharField(max_length=50, verbose_name="Número de venta")
     invoice_number = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Número de factura")
     
     # Cliente y usuario
@@ -57,10 +58,14 @@ class Sale(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
 
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
+
     class Meta:
         verbose_name = "Venta"
         verbose_name_plural = "Ventas"
         ordering = ['-sale_date']
+        unique_together = ['tenant', 'sale_number']  # Número único por tenant
 
     def __str__(self):
         return f"Venta {self.sale_number} - {self.customer_name or 'Cliente general'}"
@@ -96,7 +101,7 @@ class Sale(models.Model):
         super().save(*args, **kwargs)
 
 
-class SaleItem(models.Model):
+class SaleItem(TenantAwareModel):
     """Elementos de la venta"""
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='items', verbose_name="Venta")
     product = models.ForeignKey(Product, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Producto")
@@ -111,6 +116,9 @@ class SaleItem(models.Model):
     tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Impuesto (%)")
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Impuesto")
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Total línea")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Elemento de venta"
@@ -129,13 +137,16 @@ class SaleItem(models.Model):
         super().save(*args, **kwargs)
 
 
-class PaymentMethod(models.Model):
+class PaymentMethod(TenantAwareModel):
     """Métodos de pago"""
     name = models.CharField(max_length=100, verbose_name="Nombre")
     description = models.TextField(blank=True, null=True, verbose_name="Descripción")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
     requires_reference = models.BooleanField(default=False, verbose_name="Requiere referencia")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Método de pago"
@@ -146,7 +157,7 @@ class PaymentMethod(models.Model):
         return self.name
 
 
-class Payment(models.Model):
+class Payment(TenantAwareModel):
     """Pagos de ventas"""
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='payments', verbose_name="Venta")
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, verbose_name="Método de pago")
@@ -155,6 +166,9 @@ class Payment(models.Model):
     notes = models.TextField(blank=True, null=True, verbose_name="Notas")
     payment_date = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de pago")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Usuario")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Pago"

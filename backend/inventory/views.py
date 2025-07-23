@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum, F
 from django.utils import timezone
+from gestor_pos.viewsets import TenantAwareViewSet, TenantAwareReadOnlyViewSet
 from .models import (
     Warehouse, Stock, StockMovement, StockAlert,
     InventoryAdjustment, InventoryAdjustmentItem
@@ -16,7 +17,7 @@ from .serializers import (
 from products.models import Product, ProductVariant
 
 
-class WarehouseViewSet(viewsets.ModelViewSet):
+class WarehouseViewSet(TenantAwareViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -26,7 +27,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
 
-class StockViewSet(viewsets.ModelViewSet):
+class StockViewSet(TenantAwareViewSet):
     queryset = Stock.objects.select_related('product', 'product_variant', 'warehouse')
     serializer_class = StockSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -119,7 +120,7 @@ class StockViewSet(viewsets.ModelViewSet):
         })
 
 
-class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
+class StockMovementViewSet(TenantAwareReadOnlyViewSet):
     queryset = StockMovement.objects.select_related('stock', 'user')
     serializer_class = StockMovementSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -146,7 +147,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
-class StockAlertViewSet(viewsets.ModelViewSet):
+class StockAlertViewSet(TenantAwareViewSet):
     queryset = StockAlert.objects.select_related('stock')
     serializer_class = StockAlertSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -166,7 +167,7 @@ class StockAlertViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class InventoryAdjustmentViewSet(viewsets.ModelViewSet):
+class InventoryAdjustmentViewSet(TenantAwareViewSet):
     queryset = InventoryAdjustment.objects.select_related('warehouse', 'user').prefetch_related('items')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['warehouse', 'user']

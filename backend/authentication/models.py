@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
 from django.db import models
+from gestor_pos.models import TenantAwareModel, TenantAwareManager
 
 # Modelo User personalizado temporalmente removido para evitar conflictos
 # Se puede implementar más adelante usando migraciones adecuadas
 
-class UserSession(models.Model):
+class UserSession(TenantAwareModel):
     """
     Modelo para rastrear sesiones de usuario
     """
@@ -15,6 +16,9 @@ class UserSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Sesión de Usuario"

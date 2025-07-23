@@ -8,6 +8,7 @@ from django.db.models import Count, Sum, Q, F, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
+from gestor_pos.viewsets import TenantAwareViewSet
 
 from .models import Sale, SaleItem, Payment, PaymentMethod
 from .serializers import (
@@ -16,10 +17,9 @@ from .serializers import (
 )
 
 
-class SaleViewSet(viewsets.ModelViewSet):
+class SaleViewSet(TenantAwareViewSet):
     """ViewSet para ventas"""
     queryset = Sale.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status', 'sale_type', 'customer', 'payment_status']
     search_fields = ['sale_number', 'customer__name', 'notes']
@@ -221,11 +221,10 @@ class SaleViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class SaleItemViewSet(viewsets.ModelViewSet):
+class SaleItemViewSet(TenantAwareViewSet):
     """ViewSet para items de venta"""
     queryset = SaleItem.objects.all()
     serializer_class = SaleItemSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['sale', 'product']
     search_fields = ['product__name', 'sale__sale_number']
@@ -248,11 +247,10 @@ class SaleItemViewSet(viewsets.ModelViewSet):
         return Response(products)
 
 
-class PaymentViewSet(viewsets.ModelViewSet):
+class PaymentViewSet(TenantAwareViewSet):
     """ViewSet para pagos"""
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['payment_method', 'sale']
     search_fields = ['sale__sale_number', 'notes']
@@ -293,11 +291,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
         })
 
 
-class PaymentMethodViewSet(viewsets.ModelViewSet):
+class PaymentMethodViewSet(TenantAwareViewSet):
     """ViewSet para métodos de pago"""
     queryset = PaymentMethod.objects.all()
     serializer_class = PaymentMethodSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name', 'description']
     ordering_fields = ['name']

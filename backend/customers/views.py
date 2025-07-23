@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Sum
+from gestor_pos.viewsets import TenantAwareViewSet
 from .models import CustomerGroup, Customer, CustomerAddress, CustomerContact
 from .serializers import (
     CustomerGroupSerializer, CustomerSerializer, CustomerCreateSerializer,
@@ -10,7 +11,7 @@ from .serializers import (
 )
 
 
-class CustomerGroupViewSet(viewsets.ModelViewSet):
+class CustomerGroupViewSet(TenantAwareViewSet):
     queryset = CustomerGroup.objects.all()
     serializer_class = CustomerGroupSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -20,7 +21,7 @@ class CustomerGroupViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
 
-class CustomerViewSet(viewsets.ModelViewSet):
+class CustomerViewSet(TenantAwareViewSet):
     queryset = Customer.objects.select_related('customer_group').prefetch_related('addresses', 'contacts')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['customer_group', 'document_type', 'is_active', 'is_vip', 'city', 'state']
@@ -104,7 +105,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         })
 
 
-class CustomerAddressViewSet(viewsets.ModelViewSet):
+class CustomerAddressViewSet(TenantAwareViewSet):
     queryset = CustomerAddress.objects.select_related('customer')
     serializer_class = CustomerAddressSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -124,7 +125,7 @@ class CustomerAddressViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class CustomerContactViewSet(viewsets.ModelViewSet):
+class CustomerContactViewSet(TenantAwareViewSet):
     queryset = CustomerContact.objects.select_related('customer')
     serializer_class = CustomerContactSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
