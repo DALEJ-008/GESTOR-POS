@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 # from tenant_schemas.models import TenantMixin  # Comentado temporalmente
 
 
@@ -41,3 +42,30 @@ class Tenant(models.Model):  # Cambiar por TenantMixin cuando esté listo
 
     def __str__(self):
         return self.name
+
+
+class UserTenant(models.Model):
+    """
+    Relación entre usuarios y tenants (empresas)
+    Un usuario puede pertenecer a múltiples empresas con diferentes roles
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tenants')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='users')
+    role = models.CharField(max_length=20, default='user',
+                           choices=[
+                               ('admin', 'Administrador'),
+                               ('manager', 'Gerente'),
+                               ('user', 'Usuario'),
+                               ('viewer', 'Solo Lectura'),
+                           ], verbose_name="Rol")
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
+
+    class Meta:
+        verbose_name = "Usuario-Tenant"
+        verbose_name_plural = "Usuarios-Tenants"
+        unique_together = ['user', 'tenant']  # Un usuario solo puede tener un rol por tenant
+
+    def __str__(self):
+        return f"{self.user.username} - {self.tenant.name} ({self.role})"

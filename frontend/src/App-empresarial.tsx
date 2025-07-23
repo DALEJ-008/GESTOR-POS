@@ -1204,7 +1204,7 @@ const App: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div class="company-name">GESTOR POS</div>
+          <div class="company-name">EPOS - Sistema POS</div>
           <div class="document-title">ORDEN DE COMPRA</div>
           <div>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-ES')}</div>
         </div>
@@ -1289,7 +1289,7 @@ const App: React.FC = () => {
         </div>
 
         <div class="footer">
-          <p>Documento generado automáticamente por GESTOR POS</p>
+          <p>Documento generado automáticamente por EPOS - Sistema POS</p>
           <p>Fecha de generación: ${new Date().toLocaleString('es-ES')}</p>
           <p>Para consultas, contacte al departamento de compras</p>
         </div>
@@ -5937,7 +5937,7 @@ const App: React.FC = () => {
             <body>
               <div class="header">
                 <div class="company-info">
-                  <div class="company-name">GESTOR POS</div>
+                  <div class="company-name">EPOS - Sistema POS</div>
                   <div>Sistema de Gestión Empresarial</div>
                   <div>info@gestorpos.com | +1 (555) 123-4567</div>
                 </div>
@@ -5991,7 +5991,7 @@ const App: React.FC = () => {
               ` : ''}
 
               <div style="text-align: center; font-size: 12px; color: #666; margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-                <p>Gracias por su preferencia - GESTOR POS</p>
+                <p>Gracias por su preferencia - EPOS Sistema POS</p>
                 <p>Factura generada el ${new Date().toLocaleString('es-ES')}</p>
               </div>
             </body>
@@ -7656,7 +7656,22 @@ const App: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mx-auto flex items-center justify-center mb-4">
                 <UserOutlined className="text-3xl text-white" />
               </div>
-              <Title level={2} className="mb-2">Gestor POS</Title>
+              <img 
+                src="/epos-logo-transparent.png?v=2" 
+                alt="ePOS" 
+                style={{
+                  height: '90px',
+                  width: 'auto',
+                  margin: '0 auto 8px auto',
+                  display: 'block',
+                  maxWidth: '250px'
+                }}
+                onError={(e) => {
+                  console.error('Error cargando logo en login:', e);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => console.log('Logo login cargado exitosamente')}
+              />
               <p className="text-gray-600">
                 {showRegister ? 'Crear nueva cuenta' : 'Inicia sesión en tu cuenta'}
               </p>
@@ -7829,9 +7844,37 @@ const App: React.FC = () => {
             }}
           >
             <div className="p-4 text-center">
-              <h2 className="text-white text-lg font-bold m-0">
-                {collapsed ? 'POS' : 'Gestor POS'}
-              </h2>
+              <div style={{ position: 'relative' }}>
+                <img 
+                  src="/epos-logo-transparent.png?v=2" 
+                  alt="ePOS" 
+                  style={{
+                    height: collapsed ? '50px' : '58px',
+                    width: 'auto',
+                    margin: '0 auto',
+                    display: 'block',
+                    maxWidth: '95%'
+                  }}
+                  onError={(e) => {
+                    console.error('Error cargando logo:', e);
+                    // Si falla la imagen, mostrar texto como fallback
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'block';
+                  }}
+                  onLoad={() => console.log('Logo cargado exitosamente')}
+                />
+                <div 
+                  style={{ 
+                    display: 'none', 
+                    color: 'white', 
+                    fontSize: collapsed ? '16px' : '18px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {collapsed ? 'ePOS' : 'ePOS'}
+                </div>
+              </div>
             </div>
             <Menu
               theme="dark"

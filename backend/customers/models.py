@@ -1,26 +1,30 @@
 from django.db import models
 from django.core.validators import EmailValidator, RegexValidator
+from gestor_pos.models import TenantAwareModel, TenantAwareManager
 
 
-class CustomerGroup(models.Model):
-    """Grupo de clientes"""
+class CustomerGroup(TenantAwareModel):
+    """Grupo de clientes - Aislado por tenant"""
     name = models.CharField(max_length=100, verbose_name="Nombre")
     description = models.TextField(blank=True, null=True, verbose_name="Descripción")
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Descuento (%)")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Grupo de cliente"
         verbose_name_plural = "Grupos de clientes"
         ordering = ['name']
+        unique_together = ['tenant', 'name']  # Nombre único por tenant
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.tenant.name})"
 
 
-class Customer(models.Model):
-    """Cliente"""
+class Customer(TenantAwareModel):
+    """Cliente - Aislado por tenant"""
     DOCUMENT_TYPES = [
         ('cedula', 'Cédula'),
         ('rif', 'RIF'),
@@ -33,7 +37,7 @@ class Customer(models.Model):
     last_name = models.CharField(max_length=100, verbose_name="Apellido")
     company_name = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nombre de empresa")
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='cedula', verbose_name="Tipo de documento")
-    document_number = models.CharField(max_length=50, unique=True, verbose_name="Número de documento")
+    document_number = models.CharField(max_length=50, verbose_name="Número de documento")
     
     # Contacto
     email = models.EmailField(blank=True, null=True, validators=[EmailValidator()], verbose_name="Email")
@@ -60,18 +64,20 @@ class Customer(models.Model):
     
     # Fechas
     birth_date = models.DateField(blank=True, null=True, verbose_name="Fecha de nacimiento")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
+
+    # Manager personalizado para filtrado automático por tenant
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Cliente"
         verbose_name_plural = "Clientes"
         ordering = ['first_name', 'last_name']
+        unique_together = ['tenant', 'document_number']  # Documento único por tenant
 
     def __str__(self):
         if self.company_name:
-            return f"{self.company_name} ({self.document_number})"
-        return f"{self.first_name} {self.last_name} ({self.document_number})"
+            return f"{self.company_name} ({self.document_number}) - {self.tenant.name}"
+        return f"{self.first_name} {self.last_name} ({self.document_number}) - {self.tenant.name}"
 
     @property
     def full_name(self):

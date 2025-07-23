@@ -435,8 +435,23 @@ const App: React.FC = (): React.JSX.Element => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          <Title level={4} style={{ color: 'white', margin: 0 }}>
-            {collapsed ? '💼' : '💼 Gestor POS'}
+          <img 
+            src="/epos-logo-transparent.png?v=2" 
+            alt="ePOS" 
+            style={{
+              height: collapsed ? '58px' : '62px',
+              width: 'auto',
+              maxWidth: collapsed ? '95%' : '90%'
+            }}
+            onError={(e) => {
+              // Fallback a texto si falla la imagen
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <Title level={4} style={{ color: 'white', margin: 0, display: 'none' }}>
+            {collapsed ? 'ePOS' : 'ePOS'}
           </Title>
         </div>
         
