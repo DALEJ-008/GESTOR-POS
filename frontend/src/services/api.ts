@@ -46,7 +46,8 @@ export default api;
 // Auth API endpoints
 export const authAPI = {
   login: (username: string, password: string) =>
-    api.post('/auth/login/', { username, password }),
+    // CAMBIO: Ponemos la URL completa para asegurar que llegue al servidor
+    api.post('https://gestorpos.pythonanywhere.com/api/auth/login/', { username, password }),
   
   register: (userData: {
     username: string;
@@ -55,21 +56,7 @@ export const authAPI = {
     confirm_password: string;
     first_name: string;
     last_name: string;
-  }) => api.post('/auth/register/', userData),
-  
-  refreshToken: (refresh: string) =>
-    api.post('/auth/token/refresh/', { refresh }),
-  
-  logout: () => api.post('/auth/logout/'),
-  
-  getProfile: () => api.get('/auth/profile/'),
-  
-  updateProfile: (data: any) => api.patch('/auth/profile/', data),
-  
-  changePassword: (data: {
-    old_password: string;
-    new_password: string;
-  }) => api.post('/auth/change-password/', data),
+  }) => api.post('https://gestorpos.pythonanywhere.com/api/auth/register/', userData),
 };
 
 // Tenants API endpoints

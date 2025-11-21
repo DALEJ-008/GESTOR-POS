@@ -128,6 +128,17 @@ application = get_wsgi_application()
 2. Agregar mapping:
    - **URL**: `/static/`
    - **Directory**: `/home/tu-usuario/GESTOR-POS/backend/staticfiles`
+3. Si tu aplicación usa archivos subidos (media), agrega también:
+    - **URL**: `/media/`
+    - **Directory**: `/home/tu-usuario/GESTOR-POS/backend/media`
+
+### WSGI y Virtualenv (Web tab)
+
+En la sección "Code" de la pestaña Web configura además:
+- **Virtualenv**: `/home/tu-usuario/GESTOR-POS/backend/venv` (activa el virtualenv creado por el script)
+- **WSGI configuration file**: usa el archivo `wsgi_production.py` en el directorio del backend.
+
+> Nota: Asegúrate de editar el archivo `.env` en `~/GESTOR-POS/backend/.env` y poner tu `DB_PASSWORD` real antes de recargar la app.
 
 ### 9. Configurar CORS (si usas frontend separado)
 

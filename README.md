@@ -119,6 +119,19 @@ cd gestor-pos
 cd backend
 ```
 
+### Despliegue en PythonAnywhere (rápido)
+
+- Hay un script de ayuda `deploy_pythonanywhere.sh` en la raíz del proyecto. En PythonAnywhere abre una consola Bash y ejecuta:
+
+```bash
+# Desde tu home en PythonAnywhere
+cd ~/GESTOR-POS/backend
+bash deploy_pythonanywhere.sh
+```
+
+- El script crea/activa el `venv`, instala dependencias, genera un `.env` con valores por defecto (edita `DB_PASSWORD`), ejecuta migraciones y `collectstatic`. Revisa y edita `.env` antes de recargar la app desde la pestaña "Web".
+
+
 #### Instalar dependencias (las dependencias ya están instaladas en este proyecto)
 ```bash
 # Si necesitas reinstalar las dependencias:
@@ -484,5 +497,6 @@ npm run preview
 - [ ] **Desarrollar interfaz** de usuario React
 
 ¡El backend está 100% funcional y listo para desarrollo!
-#   G E S T O R - P O S  
+#   G E S T O R - P O S 
+ 
  

@@ -1,29 +1,30 @@
 """
-Configuración de Django para producción en PythonAnywhere
+Configuración de Django para producción en PythonAnywhere.
+
+Este archivo usa variables de entorno (a través de `decouple.config`) para
+facilitar el despliegue en PythonAnywhere. Reemplaza variables en el entorno
+de PA o crea un `.env` en `backend/` con los valores adecuados.
 """
 
 from .settings import *
 import os
+from decouple import config
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# SECURITY
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-# Dominios permitidos - actualizar con tu dominio de PythonAnywhere
-ALLOWED_HOSTS = [
-    'tu-usuario.pythonanywhere.com',  # Reemplazar con tu usuario real
-    'localhost',
-    '127.0.0.1',
-]
+# Dominios permitidos
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
-# Base de datos para producción - MySQL en PythonAnywhere
+# Base de datos para producción (MySQL en PythonAnywhere)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'tu-usuario$gestor_pos',  # Reemplazar con tu usuario real
-        'USER': 'tu-usuario',  # Reemplazar con tu usuario real
-        'PASSWORD': 'tu-password-db',  # Tu password de MySQL
-        'HOST': 'tu-usuario.mysql.pythonanywhere-services.com',  # Tu host MySQL
-        'PORT': '3306',
+        'ENGINE': config('DB_ENGINE', default='django.db.backends.mysql'),
+        'NAME': config('DB_NAME', default=f"{os.environ.get('USER','tu-usuario')}$gestor_pos"),
+        'USER': config('DB_USER', default=os.environ.get('USER', 'tu-usuario')),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default=f"{os.environ.get('USER','tu-usuario')}.mysql.pythonanywhere-services.com"),
+        'PORT': config('DB_PORT', default='3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
@@ -31,27 +32,28 @@ DATABASES = {
     }
 }
 
-# Archivos estáticos para producción
+# Archivos estáticos y media
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = config('STATIC_ROOT', default=os.path.join(BASE_DIR, 'staticfiles'))
 
-# Archivos multimedia
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = config('MEDIA_ROOT', default=os.path.join(BASE_DIR, 'media'))
 
-# Configuración de CORS para producción
-CORS_ALLOWED_ORIGINS = [
-    "https://tu-usuario.pythonanywhere.com",  # Tu dominio
-]
+# CORS
+cors_origins = config('CORS_ALLOWED_ORIGINS', default='')
+if cors_origins:
+    CORS_ALLOWED_ORIGINS = [u.strip() for u in cors_origins.split(',') if u.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [f"https://{os.environ.get('USER','tu-usuario')}.pythonanywhere.com"]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Configuración de seguridad adicional
+# Seguridad adicional
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# Configuración de logging para producción
+# Logging (se mantiene, pero usando ruta en BASE_DIR)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -74,21 +76,4 @@ LOGGING = {
     },
 }
 
-# Cache con Redis (si está disponible en tu plan)
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/1',
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }
-
-# Configuración de email (opcional)
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'tu-email@gmail.com'
-# EMAIL_HOST_PASSWORD = 'tu-password-email'
+# Nota: Redis/Celery y email pueden configurarse desde variables de entorno

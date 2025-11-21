@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import weekday from 'dayjs/plugin/weekday';
+import axios from 'axios';
 
 dayjs.locale('es');
 dayjs.extend(weekOfYear);
